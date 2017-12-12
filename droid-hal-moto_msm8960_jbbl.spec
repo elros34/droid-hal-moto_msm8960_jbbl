@@ -8,6 +8,8 @@
 
 %define installable_zip 1
 
+%define enable_kernel_update 1
+
 %define android_config \
 #define DROID_AUDIO_HAL_ATOI_FIX\
 %{nil}
