@@ -10,10 +10,6 @@
 
 %define enable_kernel_update 1
 
-%define android_config \
-#define DROID_AUDIO_HAL_ATOI_FIX\
-%{nil}
-
 %define straggler_files \
 /f2fs-fstab.qcom\
 /f2fscheck.sh\
