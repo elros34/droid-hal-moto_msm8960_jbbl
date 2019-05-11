@@ -21,4 +21,6 @@
 /init.qcom.usb.sh\
 %{nil}
 
+%define makefstab_skip_entries /sys/fs/pstore
+
 %include rpm/dhd/droid-hal-device.inc
