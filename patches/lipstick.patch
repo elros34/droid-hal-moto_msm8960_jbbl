@@ -1,0 +1,82 @@
+diff --git a/plugin/plugin.pro b/plugin/plugin.pro
+index 16c1821..a7c5c74 100644
+--- a/plugin/plugin.pro
++++ b/plugin/plugin.pro
+@@ -6,6 +6,8 @@ CONFIG += qt plugin link_pkgconfig
+ QT += core gui qml quick compositor dbus
+ PKGCONFIG += mlite5 dsme_dbus_if thermalmanager_dbus_if usb-moded-qt5
+ 
++QMAKE_STRIP = strip
++
+ INSTALLS = target qmldirfile
+ qmldirfile.files = qmldir
+ qmldirfile.path = $$[QT_INSTALL_QML]/org/nemomobile/lipstick
+diff --git a/src/screenshotservice.cpp b/src/screenshotservice.cpp
+index f6d1a4c..5e40bbc 100644
+--- a/src/screenshotservice.cpp
++++ b/src/screenshotservice.cpp
+@@ -169,21 +169,16 @@ ScreenshotResult *ScreenshotService::saveScreenshot(const QString &path)
+         return result;
+     }
+ 
+-    QQuickWindowPrivate *wd = QQuickWindowPrivate::get(compositor);
+-    HwcRenderStage *renderStage = (HwcRenderStage *) wd->customRenderStage;
+-    if (renderStage)
+-        renderStage->setBypassHwc(true);
+-
+-    QImage grab(compositor->grabWindow());
+-
+-    if (renderStage) {
+-        renderStage->setBypassHwc(false);
+-    }
++    auto grabResult_p = compositor->contentItem()->grabToImage();
+ 
+     const int rotation(QGuiApplication::primaryScreen()->angleBetween(
+                 Qt::PrimaryOrientation, compositor->topmostWindowOrientation()));
+ 
+-    QThreadPool::globalInstance()->start(new ScreenshotWriter(notifierId, grab, path, rotation));
++    QObject::connect(grabResult_p.data(), &QQuickItemGrabResult::ready, grabResult_p.data(), [=]() {
++        QImage grab = grabResult_p->image();
++        QThreadPool::globalInstance()->start(new ScreenshotWriter(notifierId, grab, path, rotation));
++    });
++
+ 
+     return result;
+ }
+diff --git a/src/screenshotservice.h b/src/screenshotservice.h
+index 24c633f..dee112b 100644
+--- a/src/screenshotservice.h
++++ b/src/screenshotservice.h
+@@ -18,6 +18,8 @@
+ #include <QObject>
+ #include <QSocketNotifier>
+ #include <QUrl>
++#include <QSharedPointer>
++#include <QQuickItemGrabResult>
+ 
+ #include "lipstickglobal.h"
+ 
+@@ -56,8 +58,9 @@ private:
+     Status m_status = Writing;
+ };
+ 
+-class ScreenshotService
++class ScreenshotService : public QObject
+ {
++    Q_OBJECT
+ public:
+     static ScreenshotResult *saveScreenshot(const QString &path);
+ };
+diff --git a/src/src.pro b/src/src.pro
+index 5d63f3d..7f438c7 100644
+--- a/src/src.pro
++++ b/src/src.pro
+@@ -17,7 +17,7 @@ CONFIG += qt wayland-scanner c++11
+ INSTALLS = target ts_install engineering_english_install
+ target.path = $$[QT_INSTALL_LIBS]
+ 
+-QMAKE_STRIP = echo
++QMAKE_STRIP = strip
+ OBJECTS_DIR = .obj
+ MOC_DIR = .moc
+ 

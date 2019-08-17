@@ -1,0 +1,58 @@
+diff --git a/init-script b/init-script
+index 446e727..a6294e0 100755
+--- a/init-script
++++ b/init-script
+@@ -201,6 +201,11 @@ usb_setup() {
+       write $ANDROID_USB/functions     $USB_FUNCTIONS
+       write $ANDROID_USB/enable        1
+ }
++
++dmesg_info() {
++    echo "[hybris-boot] $@" > /dev/kmsg
++}
++
+ # This lets us communicate errors to host (if it needs disable/enable then that's a problem)
+ usb_info() {
+     # make sure USB is settled
+@@ -297,12 +302,18 @@ if [ "$DONE_SWITCH" = "no" ]; then
+ 
+     do_mount_devprocsys
+ 
++    dmesg_info "Hello from the initramfs"
++
+     do_hotplug_scan
+ 
+     # Support /dev/block/mmcXXX only in initrd phase
+     ln -s . /dev/block
+     ln -s /proc/mounts /etc/mtab
+ 
++    # Handle whole moto_msm8960_jbbl family automatically
++    DATA_PARTITION="$(fdisk -l /dev/mmcblk0 | awk '/userdata/ { print "/dev/mmcblk0p"$1 }')"
++    dmesg_info "userdata=$DATA_PARTITION"
++
+     check_kernel_config
+ 
+     bootsplash
+@@ -340,7 +351,12 @@ if [ "$DONE_SWITCH" = "no" ]; then
+     echo "" > /proc/sys/kernel/hotplug
+ 
+     if [ -f "/target/init-debug" ]; then
+-	exec switch_root /target /init-debug &> /target/init-debug-stderrout
++        if [ ! -f "/target/etc/systemd/system/system.mount.d/block-device.conf" ]; then
++            SYSTEM_PARTITION="$(fdisk -l /dev/mmcblk0 | awk '/system/ { print "/dev/mmcblk0p"$1 }')"
++            echo -e "[Mount]\nWhat=$SYSTEM_PARTITION" > /target/etc/systemd/system/system.mount.d/block-device.conf
++            dmesg_info "system=$SYSTEM_PARTITION"
++        fi
++        exec switch_root /target /init-debug &> /target/init-debug-stderrout
+     else
+ 	# Prefer /sbin/preinit over /sbin/init
+ 	[ -x /target/sbin/preinit ] && INIT=/sbin/preinit || INIT=/sbin/init
+@@ -357,6 +373,8 @@ else
+ 
+     do_mount_devprocsys
+ 
++    dmesg_info "init-debug"
++
+     HALT_BOOT="n"
+     [ -f /init_enter_debug2 ] && HALT_BOOT="y"
+     [ -f /init_disable_telnet ] && DISABLE_TELNET="y"

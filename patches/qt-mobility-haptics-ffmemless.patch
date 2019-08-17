@@ -1,0 +1,111 @@
+diff --git a/qfeedback.cpp b/qfeedback.cpp
+index dfbb327..8cac716 100644
+--- a/qfeedback.cpp
++++ b/qfeedback.cpp
+@@ -164,6 +164,8 @@ QFeedbackFFMemless::~QFeedbackFFMemless()
+ {
+     if (m_vibraSpiDevice != -1)
+         close(m_vibraSpiDevice);
++
++    m_mmiVibraFile.close();
+ }
+ 
+ void QFeedbackFFMemless::initialiseConstants()
+@@ -290,6 +292,13 @@ bool QFeedbackFFMemless::initialiseEffects()
+     m_customEffectsPossible = false;
+     m_actuatorEnabled = false;
+ 
++    m_mmiVibraFile.setFileName("/sys/module/board_mmi_vibrator/parameters/enable_us");
++    if (!m_mmiVibraFile.open(QIODevice::WriteOnly)) {
++        qDebug() << "Failed to open " + m_mmiVibraFile.fileName();
++        m_initialising = false;
++        return false;
++    }
++
+     // close the previous fd to the ff-memless ioctl
+     if (m_vibraSpiDevice != -1) {
+         close(m_vibraSpiDevice);
+@@ -437,12 +446,12 @@ bool QFeedbackFFMemless::play(QFeedbackEffect::ThemeEffect effect)
+         return false;
+ 
+     // use Q_LIKELY to optimise for VKB key presses
+-    if (Q_LIKELY(effect == QFeedbackEffect::ThemeBasicKeypad && m_periodicThemeEffectsPossible)) {
++    if (Q_LIKELY(effect == QFeedbackEffect::ThemeBasicKeypad)) {
+         if (Q_UNLIKELY(m_profileTouchscreenVibraLevel == 0)) {
+             return false;
+         }
+-        m_themeEffectPlayEvent.code = m_periodicThemeEffect.id;
+-        return writeEffectEvent(&m_themeEffectPlayEvent);
++        enable_mmiVibra(KEYPAD_PRESS_DURATION);
++        return true;
+     }
+ 
+     switch (effect) {
+@@ -454,17 +463,6 @@ bool QFeedbackFFMemless::play(QFeedbackEffect::ThemeEffect effect)
+             m_themeEffect.replay.delay = LONG_PRESS_DELAY;
+         }
+         break;
+-        case QFeedbackEffect::ThemeBasicKeypad:
+-        {
+-            if (Q_UNLIKELY(m_profileTouchscreenVibraLevel == 0))
+-                return false;
+-
+-            m_themeEffect.u.rumble.strong_magnitude = KEYPAD_PRESS_MAX;
+-            m_themeEffect.u.rumble.weak_magnitude = KEYPAD_PRESS_MIN;
+-            m_themeEffect.replay.length = KEYPAD_PRESS_DURATION;
+-            m_themeEffect.replay.delay = KEYPAD_PRESS_DELAY;
+-        }
+-        break;
+         case QFeedbackEffect::ThemeBasicButton: // BasicButton is the default.
+         {
+             if (Q_UNLIKELY(m_profileTouchscreenVibraLevel == 0))
+@@ -480,6 +478,11 @@ bool QFeedbackFFMemless::play(QFeedbackEffect::ThemeEffect effect)
+         break;
+     }
+ 
++    if (m_themeEffect.replay.length <= 40) { // software pwm (ffmemless driver) works poorly for short events
++        enable_mmiVibra(m_themeEffect.replay.length);
++        return true;
++    }
++
+     if (!uploadEffect(&m_themeEffect))
+         return false;
+ 
+@@ -707,4 +710,8 @@ QFeedbackEffect::State QFeedbackFFMemless::effectState(const QFeedbackHapticsEff
+     return QFeedbackEffect::Stopped;
+ }
+ 
+-
++void QFeedbackFFMemless::enable_mmiVibra(int msec)
++{
++    m_mmiVibraFile.write(QByteArray::number(msec * 1000));
++    m_mmiVibraFile.flush();
++}
+diff --git a/qfeedback.h b/qfeedback.h
+index 558c597..b3741e1 100644
+--- a/qfeedback.h
++++ b/qfeedback.h
+@@ -47,6 +47,7 @@
+ #include <linux/input.h>
+ #include <QElapsedTimer>
+ #include <QTimer>
++#include <QFile>
+ 
+ QT_BEGIN_HEADER
+ 
+@@ -94,6 +95,7 @@ private:
+     bool initialiseEffects();
+     bool uploadEffect(struct ff_effect *effect);
+     bool writeEffectEvent(struct input_event *event);
++    void enable_mmiVibra(int msec);
+ 
+ private:
+     // profile change detection (normal / silent / airplane etc)
+@@ -116,6 +118,7 @@ private:
+     int m_vibraSpiDevice;
+     bool m_actuatorEnabled;
+     bool m_periodicEffectIsActive;
++    QFile m_mmiVibraFile;
+ 
+     // determined during ctor.
+     bool m_supportsRumble;
