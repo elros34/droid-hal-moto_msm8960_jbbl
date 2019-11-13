@@ -1,20 +1,19 @@
 diff --git a/init-script b/init-script
-index 446e727..a6294e0 100755
+index b43d69b..38c81f8 100755
 --- a/init-script
 +++ b/init-script
-@@ -201,6 +201,11 @@ usb_setup() {
-       write $ANDROID_USB/functions     $USB_FUNCTIONS
-       write $ANDROID_USB/enable        1
+@@ -171,6 +171,10 @@ write() {
+   echo -n "$2" > "$1"
  }
-+
+ 
 +dmesg_info() {
 +    echo "[hybris-boot] $@" > /dev/kmsg
 +}
 +
- # This lets us communicate errors to host (if it needs disable/enable then that's a problem)
- usb_info() {
-     # make sure USB is settled
-@@ -297,12 +302,18 @@ if [ "$DONE_SWITCH" = "no" ]; then
+ inject_loop() {
+     INJ_DIR=/init-ctl
+     INJ_STDIN=$INJ_DIR/stdin
+@@ -343,12 +347,18 @@ if [ "$DONE_SWITCH" = "no" ]; then
  
      do_mount_devprocsys
  
@@ -33,7 +32,7 @@ index 446e727..a6294e0 100755
      check_kernel_config
  
      bootsplash
-@@ -340,7 +351,12 @@ if [ "$DONE_SWITCH" = "no" ]; then
+@@ -386,7 +396,12 @@ if [ "$DONE_SWITCH" = "no" ]; then
      echo "" > /proc/sys/kernel/hotplug
  
      if [ -f "/target/init-debug" ]; then
@@ -47,7 +46,7 @@ index 446e727..a6294e0 100755
      else
  	# Prefer /sbin/preinit over /sbin/init
  	[ -x /target/sbin/preinit ] && INIT=/sbin/preinit || INIT=/sbin/init
-@@ -357,6 +373,8 @@ else
+@@ -403,6 +418,8 @@ else
  
      do_mount_devprocsys
  
