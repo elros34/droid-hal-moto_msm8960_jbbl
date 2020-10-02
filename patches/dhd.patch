@@ -1,0 +1,20 @@
+diff --git a/helpers/makeudev b/helpers/makeudev
+index 705e324..0c4abd1 100755
+--- a/helpers/makeudev
++++ b/helpers/makeudev
+@@ -52,7 +52,14 @@ while (<>) {
+     print "# sys rule\n";
+     s{^/sys/}{};
+     my ($dev, $key, $mode, $owner, $group) = split;
+-    print qq{DEVPATH=="/$dev", TEST=="/sys/\$devpath/$key", RUN+="/bin/chmod $mode /sys/\$devpath/$key", RUN+="/bin/chown $owner:$group /sys/\$devpath/$key"\n} ;
++    if ($dev =~ m{^devices/system/cpu/cpu\*} && $key =~ m{/}) {
++        my @values = split('/', $key);
++        $dev = "$dev/$values[0]";
++        $key = "$values[1]";
++        print qq{# DEVPATH=="/$dev", TEST=="/sys/\$devpath/$key", RUN+="/bin/chmod $mode /sys/\$devpath/$key", RUN+="/bin/chown $owner:$group /sys/\$devpath/$key"\n} ;
++    } else {
++        print qq{DEVPATH=="/$dev", TEST=="/sys/\$devpath/$key", RUN+="/bin/chmod $mode /sys/\$devpath/$key", RUN+="/bin/chown $owner:$group /sys/\$devpath/$key"\n} ;
++    }
+     next;
+   }
+ 
