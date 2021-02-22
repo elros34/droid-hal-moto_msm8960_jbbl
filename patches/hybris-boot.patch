@@ -1,5 +1,5 @@
 diff --git a/init-script b/init-script
-index b43d69b..38c81f8 100755
+index b43d69b..f860d1e 100755
 --- a/init-script
 +++ b/init-script
 @@ -171,6 +171,10 @@ write() {
@@ -13,7 +13,23 @@ index b43d69b..38c81f8 100755
  inject_loop() {
      INJ_DIR=/init-ctl
      INJ_STDIN=$INJ_DIR/stdin
-@@ -343,12 +347,18 @@ if [ "$DONE_SWITCH" = "no" ]; then
+@@ -333,6 +337,15 @@ check_kernel_config() {
+     fi
+ }
+ 
++adjust_block_device() {
++    conf_path="/target/etc/systemd/system/$1.mount.d/block-device.conf"
++    if [ ! -f "$conf_path" ]; then
++        block_device="$(fdisk -l /dev/mmcblk0 | awk '/'$1'/ { print "/dev/mmcblk0p"$1 }')"
++        echo -e "[Mount]\nWhat=$block_device" > $conf_path
++        dmesg_info "$1=$block_device"
++    fi
++}
++
+ # Now either initrd or rootfs sequence
+ 
+ if [ "$DONE_SWITCH" = "no" ]; then
+@@ -343,12 +356,18 @@ if [ "$DONE_SWITCH" = "no" ]; then
  
      do_mount_devprocsys
  
@@ -32,21 +48,18 @@ index b43d69b..38c81f8 100755
      check_kernel_config
  
      bootsplash
-@@ -386,7 +396,12 @@ if [ "$DONE_SWITCH" = "no" ]; then
+@@ -386,7 +405,9 @@ if [ "$DONE_SWITCH" = "no" ]; then
      echo "" > /proc/sys/kernel/hotplug
  
      if [ -f "/target/init-debug" ]; then
 -	exec switch_root /target /init-debug &> /target/init-debug-stderrout
-+        if [ ! -f "/target/etc/systemd/system/system.mount.d/block-device.conf" ]; then
-+            SYSTEM_PARTITION="$(fdisk -l /dev/mmcblk0 | awk '/system/ { print "/dev/mmcblk0p"$1 }')"
-+            echo -e "[Mount]\nWhat=$SYSTEM_PARTITION" > /target/etc/systemd/system/system.mount.d/block-device.conf
-+            dmesg_info "system=$SYSTEM_PARTITION"
-+        fi
++        adjust_block_device system
++        adjust_block_device cache
 +        exec switch_root /target /init-debug &> /target/init-debug-stderrout
      else
  	# Prefer /sbin/preinit over /sbin/init
  	[ -x /target/sbin/preinit ] && INIT=/sbin/preinit || INIT=/sbin/init
-@@ -403,6 +418,8 @@ else
+@@ -403,6 +424,8 @@ else
  
      do_mount_devprocsys
  
