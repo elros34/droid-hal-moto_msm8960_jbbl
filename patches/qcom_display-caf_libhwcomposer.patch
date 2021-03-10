@@ -1,0 +1,37 @@
+diff --git a/libhwcomposer/hwc_copybit.cpp b/libhwcomposer/hwc_copybit.cpp
+index 933c8e5..bdcda5f 100644
+--- a/libhwcomposer/hwc_copybit.cpp
++++ b/libhwcomposer/hwc_copybit.cpp
+@@ -190,6 +190,10 @@ bool CopyBit::prepare(hwc_context_t *ctx, hwc_display_contents_1_t *list,
+     for (int i = ctx->listStats[dpy].numAppLayers-1; i >= 0 ; i--) {
+         private_handle_t *hnd = (private_handle_t *)list->hwLayers[i].handle;
+ 
++        fprintf(stderr, "%s: handle for layer: %d is NULL\n", __FUNCTION__, i);
++        if (hnd == NULL)
++            continue;
++
+         if((hnd->bufferType == BUFFER_TYPE_VIDEO) && (layerProp[i].mFlags & HWC_MDPCOMP))
+             continue;
+ 
+diff --git a/libhwcomposer/hwc_mdpcomp.cpp b/libhwcomposer/hwc_mdpcomp.cpp
+index 4d64fa2..dfbf694 100644
+--- a/libhwcomposer/hwc_mdpcomp.cpp
++++ b/libhwcomposer/hwc_mdpcomp.cpp
+@@ -296,7 +296,7 @@ bool MDPComp::isValidDimension(hwc_context_t *ctx, hwc_layer_1_t *layer) {
+     private_handle_t *hnd = (private_handle_t *)layer->handle;
+ 
+     if(!hnd) {
+-        ALOGE("%s: layer handle is NULL", __FUNCTION__);
++        //ALOGE("%s: layer handle is NULL", __FUNCTION__);
+         return false;
+     }
+ 
+@@ -863,7 +863,7 @@ bool MDPComp::programYUV(hwc_context_t *ctx, hwc_display_contents_1_t* list) {
+     return true;
+ }
+ 
+-int MDPComp::prepare(hwc_context_t *ctx, hwc_display_contents_1_t* list) {
++int MDPComp::prepare(hwc_context_t *ctx, hwc_display_contents_1_t* list) {//isvaliddimension
+ 
+     const int numLayers = ctx->listStats[mDpy].numAppLayers;
+     int ret = 1;
